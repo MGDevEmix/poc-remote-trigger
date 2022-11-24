@@ -1,2 +1,2 @@
-# poc-remote-trigger
+# Project poc-remote-trigger
 POC for a remote trigger.
