@@ -22,17 +22,31 @@
 #include <SPI.h>                                               //the SX128X device is SPI based so load the SPI library                                         
 #include <SX128XLT.h>                                          //include the appropriate library  
 #include "Settings.h"                                          //include the setiings file, frequencies, LoRa settings etc  
+//#include "ArduinoLowPower.h"
 
 SX128XLT LT;                                                   //create a library class instance called LT
 
+// Tx
 uint8_t TXPacketL;
 uint32_t TXPacketCount, startmS, endmS;
-
 uint8_t buff[] = "Hello World 1234567890";
+
+// Rx
+uint32_t RXpacketCount;
+uint32_t errors;
+uint8_t RXBUFFER[RXBUFFER_SIZE];                 //create the buffer that received packets are copied into
+uint8_t RXPacketL;                               //stores length of packet received
+int16_t  PacketRSSI;                             //stores RSSI of received packet
+int8_t  PacketSNR;                               //stores signal to noise ratio of received packet
 
 void setup() {
   pinMode(LED1, OUTPUT);                                   //setup pin as output for indicator LED
   led_Flash(2, 125);                                       //two quick LED flashes to indicate program start
+
+  // Set BUT1 as INPUT_PULLUP to avoid spurious wakeup
+  //pinMode(BUT1, INPUT_PULLUP);
+  // Attach a wakeup interrupt on pin 8, calling repetitionsIncrease when the device is woken up
+  //LowPower.attachInterruptWakeup(BUT1, irqBut1WakeUp, FALLING);
 
   Serial.begin(9600);
   Serial.println();
@@ -41,7 +55,15 @@ void setup() {
   Serial.println(F(__DATE__));
   Serial.println(F(Program_Version));
   Serial.println();
-  Serial.println(F("3_LoRa_Transmitter Starting"));
+  Serial.println(F("Base Starting"));
+
+  if (BUZZER > 0)
+  {
+    pinMode(BUZZER, OUTPUT);
+    digitalWrite(BUZZER, HIGH);
+    delay(50);
+    digitalWrite(BUZZER, LOW);
+  }
 
   SPI.begin();
 
@@ -96,40 +118,54 @@ void setup() {
   Serial.println();
   Serial.println();
 
-  Serial.print(F("Transmitter ready"));
+  Serial.print(F("Base ready"));
   Serial.println();
 }
 
 void loop() {
-  Serial.print(TXpower);                                       //print the transmit power defined
-  Serial.print(F("dBm "));
-  Serial.print(F("Packet> "));
-  Serial.flush();
+  // Triggers an infinite sleep (the device will be woken up only by the registered wakeup sources)
+  // The power consumption of the chip will drop consistently
+  //LowPower.sleep();
+  // Wakeup from xxx.
 
-  TXPacketL = sizeof(buff);                                    //set TXPacketL to length of array
-  buff[TXPacketL - 1] = '*';                                   //replace null character at buffer end so its visible on reciver
-
-  LT.printASCIIPacket(buff, TXPacketL);                        //print the buffer (the sent packet) as ASCII
-
-  digitalWrite(LED1, HIGH);
-  startmS =  millis();                                         //start transmit timer
-  if (LT.transmit(buff, TXPacketL, 10000, TXpower, WAIT_TX))   //will return packet length sent if OK, otherwise 0 if transmit, timeout 10 seconds
+  // Listen to command.
+  if(rx_recv_packet()) // blocking.
   {
-    endmS = millis();                                          //packet sent, note end time
-    TXPacketCount++;
-    packet_is_OK();
-  }
-  else
-  {
-    packet_is_Error();                                 //transmit packet returned 0, there was an error
+    tx_send_packet();
   }
 
-  digitalWrite(LED1, LOW);
-  Serial.println();
-  delay(packet_delay);                                 //have a delay between packets
 }
 
-void packet_is_OK()
+void tx_send_packet()
+{
+    Serial.print(TXpower);                                       //print the transmit power defined
+    Serial.print(F("dBm "));
+    Serial.print(F("Packet> "));
+    Serial.flush();
+
+    TXPacketL = sizeof(buff);                                    //set TXPacketL to length of array
+    buff[TXPacketL - 1] = '*';                                   //replace null character at buffer end so its visible on reciver
+
+    LT.printASCIIPacket(buff, TXPacketL);                        //print the buffer (the sent packet) as ASCII
+
+    digitalWrite(LED1, HIGH);
+    startmS =  millis();                                         //start transmit timer
+    if (LT.transmit(buff, TXPacketL, 10000, TXpower, WAIT_TX))   //will return packet length sent if OK, otherwise 0 if transmit, timeout 10 seconds
+    {
+      endmS = millis();                                          //packet sent, note end time
+      TXPacketCount++;
+      tx_packet_is_OK();
+    }
+    else
+    {
+      tx_packet_is_Error();                                 //transmit packet returned 0, there was an error
+    }
+
+    digitalWrite(LED1, LOW);
+    Serial.println();
+}
+
+void tx_packet_is_OK()
 {
   //if here packet has been sent OK
   uint16_t localCRC;
@@ -146,7 +182,7 @@ void packet_is_OK()
   Serial.print(TXPacketCount);                         //print total of packets sent OK
 }
 
-void packet_is_Error()
+void tx_packet_is_Error()
 {
   //if here there was an error transmitting packet
   uint16_t IRQStatus;
@@ -157,6 +193,109 @@ void packet_is_Error()
   Serial.print(F(",IRQreg,"));
   Serial.print(IRQStatus, HEX);                    //print IRQ status
   LT.printIrqStatus();                             //prints the text of which IRQs set
+}
+
+bool rx_recv_packet()
+{
+  static bool bRet;
+
+  bRet = false;
+  RXPacketL = LT.receive(RXBUFFER, RXBUFFER_SIZE, 10000, WAIT_RX); //wait for a packet to arrive
+
+  digitalWrite(LED1, HIGH);                      //something has happened
+
+  if (BUZZER > 0)                                //turn buzzer on
+  {
+    digitalWrite(BUZZER, HIGH);
+  }
+
+  PacketRSSI = LT.readPacketRSSI();              //read the recived RSSI value
+  PacketSNR = LT.readPacketSNR();                //read the received SNR value
+
+  if (RXPacketL == 0)                            //if the LT.receive() function detects an error, RXpacketL == 0
+  {
+    rx_packet_is_Error();
+  }
+  else
+  {
+    bRet = true;
+    rx_packet_is_OK();
+  }
+
+  if (BUZZER > 0)
+  {
+    digitalWrite(BUZZER, LOW);                    //buzzer off
+  }
+
+  digitalWrite(LED1, LOW);                        //LED off
+
+  Serial.println();
+
+  return bRet;
+}
+
+void rx_packet_is_OK()
+{
+  uint16_t IRQStatus, localCRC;
+
+  IRQStatus = LT.readIrqStatus();                  //read the LoRa device IRQ status register
+
+  RXpacketCount++;
+
+  printElapsedTime();                              //print elapsed time to Serial Monitor
+  Serial.print(F("  "));
+  LT.printASCIIPacket(RXBUFFER, RXPacketL);        //print the packet as ASCII characters
+
+  localCRC = LT.CRCCCITT(RXBUFFER, RXPacketL, 0xFFFF);  //calculate the CRC, this is the external CRC calculation of the RXBUFFER
+  Serial.print(F(",CRC,"));                        //contents, not the LoRa device internal CRC
+  Serial.print(localCRC, HEX);
+  Serial.print(F(",RSSI,"));
+  Serial.print(PacketRSSI);
+  Serial.print(F("dBm,SNR,"));
+  Serial.print(PacketSNR);
+  Serial.print(F("dB,Length,"));
+  Serial.print(RXPacketL);
+  Serial.print(F(",Packets,"));
+  Serial.print(RXpacketCount);
+  Serial.print(F(",Errors,"));
+  Serial.print(errors);
+  Serial.print(F(",IRQreg,"));
+  Serial.print(IRQStatus, HEX);
+}
+
+
+void rx_packet_is_Error()
+{
+  uint16_t IRQStatus;
+  IRQStatus = LT.readIrqStatus();                   //read the LoRa device IRQ status register
+
+  printElapsedTime();                               //print elapsed time to Serial Monitor
+
+  if (IRQStatus & IRQ_RX_TIMEOUT)                   //check for an RX timeout
+  {
+    Serial.print(F(" RXTimeout"));
+  }
+  else
+  {
+    errors++;
+    Serial.print(F(" PacketError"));
+    Serial.print(F(",RSSI,"));
+    Serial.print(PacketRSSI);
+    Serial.print(F("dBm,SNR,"));
+    Serial.print(PacketSNR);
+    Serial.print(F("dB,Length,"));
+    Serial.print(LT.readRXPacketL());               //get the real packet length
+    Serial.print(F(",Packets,"));
+    Serial.print(RXpacketCount);
+    Serial.print(F(",Errors,"));
+    Serial.print(errors);
+    Serial.print(F(",IRQreg,"));
+    Serial.print(IRQStatus, HEX);
+    LT.printIrqStatus();                            //print the names of the IRQ registers set
+  }
+
+  delay(250);                                       //gives a longer buzzer and LED flash for error
+
 }
 
 void led_Flash(uint16_t flashes, uint16_t delaymS)
@@ -170,3 +309,20 @@ void led_Flash(uint16_t flashes, uint16_t delaymS)
     delay(delaymS);
   }
 }
+
+
+void printElapsedTime()
+{
+  float seconds;
+  seconds = millis() / 1000;
+  Serial.print(seconds, 0);
+  Serial.print(F("s"));
+}
+
+/*
+void irqBut1WakeUp() {
+  // This function will be called once on device wakeup
+  // You can do some little operations here (like changing variables which will be used in the loop)
+  // Remember to avoid calling delay() and long running functions since this functions executes in interrupt context
+}
+*/
