@@ -25,7 +25,10 @@
 #include "ArduinoLowPower.h"
 #include <Adafruit_DotStar.h>
 
-#define BUT1 12
+#define BUT_ARMD  12
+#define BUT_TRIG 11
+#define mBUT_IsArmdPressed() (digitalRead(BUT_ARMD) == 0)
+#define mBUT_IsTrigPressed() (digitalRead(BUT_TRIG) == 0)
 
 SX128XLT LT;                                                   //create a library class instance called LT
 
@@ -53,10 +56,13 @@ void setup() {
   rgbLed.setPixelColor(0, 255, 0, 0); // Red
   rgbLed.show();  // Turn all LEDs off ASAP
 
-  // Set BUT1 as INPUT_PULLUP to avoid spurious wakeup
-  pinMode(BUT1, INPUT_PULLUP);
+  // Set BUTs as INPUT_PULLUP to avoid spurious wakeup
+  pinMode(BUT_ARMD,  INPUT_PULLUP);
+  pinMode(BUT_TRIG, INPUT_PULLUP);
   // Attach a wakeup interrupt on pin 8, calling repetitionsIncrease when the device is woken up
-  LowPower.attachInterruptWakeup(BUT1, irqBut1WakeUp, FALLING);
+  LowPower.attachInterruptWakeup(BUT_ARMD, irqBut1WakeUp, FALLING);
+
+  // Set BUT2 & BUT3 as input with PU.
 
   Serial.begin(9600);
   while (!Serial);
@@ -134,6 +140,24 @@ void setup() {
 }
 
 void loop() {
+  while(1)
+  {
+  if(mBUT_IsArmdPressed()) 
+  {
+    rgbLed.setPixelColor(0, 0, 0, 255); 
+  }
+  else if(mBUT_IsTrigPressed())
+  {
+    rgbLed.setPixelColor(0,255,0,0);
+  }
+  else
+  {
+    rgbLed.setPixelColor(0,0,0,0);
+  }
+    
+  rgbLed.show(); // Blue.
+  }
+  
 
   rgbLed.setPixelColor(0, 0, 0, 255); rgbLed.show(); // Blue.
   
