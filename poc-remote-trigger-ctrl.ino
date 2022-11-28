@@ -24,6 +24,7 @@
 #include "Settings.h"                                          //include the setiings file, frequencies, LoRa settings etc  
 #include "ArduinoLowPower.h"
 #include <Adafruit_DotStar.h>
+#include "timeout.h"
 
 #define BUT_ARMD  12
 #define BUT_TRIG 11
@@ -57,7 +58,7 @@ void setup() {
   rgbLed.show();  // Turn all LEDs off ASAP
 
   // Set BUTs as INPUT_PULLUP to avoid spurious wakeup
-  pinMode(BUT_ARMD,  INPUT_PULLUP);
+  pinMode(BUT_ARMD, INPUT_PULLUP);
   pinMode(BUT_TRIG, INPUT_PULLUP);
   // Attach a wakeup interrupt on pin 8, calling repetitionsIncrease when the device is woken up
   LowPower.attachInterruptWakeup(BUT_ARMD, irqBut1WakeUp, FALLING);
@@ -65,7 +66,8 @@ void setup() {
   // Set BUT2 & BUT3 as input with PU.
 
   Serial.begin(9600);
-  while (!Serial);
+  vdTimeoutSet(2000);
+  while ((!Serial) && (!bTimeoutExpired()));
   Serial.println();
   Serial.print(F(__TIME__));
   Serial.print(F(" "));
@@ -175,7 +177,8 @@ void loop() {
   LowPower.sleep();
   USBDevice.attach(); 
   Serial.begin(9600);
-  while(!Serial);
+  vdTimeoutSet(2000);
+  while((!Serial) && (!bTimeoutExpired()));
   Serial.println("hello");
   // Wakeup from BUT1.
 
