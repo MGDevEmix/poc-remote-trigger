@@ -8,6 +8,7 @@
 #endif
 
 void vdTimeoutSet(uint32_t u32Timeout_ms);
+void vdTimeoutReload(void);
 bool bTimeoutExpired(void);
 
 #ifdef __cplusplus

@@ -41,3 +41,9 @@ void vdLed_FixGreen(void)
   rgbLed.setPixelColor(0, 0, 255, 0);
   rgbLed.show(); 
 }
+
+void vdLed_FixOrange(void)
+{
+  rgbLed.setPixelColor(0, 255, 165, 0);
+  rgbLed.show(); 
+}

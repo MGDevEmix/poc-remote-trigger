@@ -19,35 +19,21 @@
 
 #define Program_Version "V0.0"
 
-
 #include "led.h"
 #include "serial_drv.h"
 #include "rf_drv.h"
 #include "app.h"
-/*
-
-
-
-*/
-
 
 void setup() 
 {
-
   vdLed_Init();       
   vdLed_FixBlue();
   vdSerialDrv_Init(Program_Version);
-  vdRfDrv_Init();
+  vdRfDrv_Init(RF_PROFILE_CONTROLLER);
   vdApp_Init();
-  /*
-  
-
-  
-  */
 }
 
 void loop() {
   vdApp_Task();
-
 }
 

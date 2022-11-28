@@ -14,32 +14,22 @@
 
 enum E_APP_ST {
   APP_ST_INIT,
-  APP_ST_INTERNAL_ERROR,
+  APP_ST_ERROR,
   APP_ST_SLEEP,
   APP_ST_GET_BASE_STATUS_SEND,
   APP_ST_GET_BASE_STATUS_RECV,
-  APP_ST_BASE_NOT_READY_OR_NOT_FOUND,
   APP_ST_BASE_READY,
-  APP_ST_TRIG_BASE_SEND,
   APP_ST_TRIG_BASE_RECV,
   APP_ST_TRIG_BASE_DONE,
-  APP_ST_TRIG_BASE_ERROR
 };
 
 void vdSetNewState(E_APP_ST eNewState);
 bool bIsNewState(void);
 void irqBut1WakeUp(void);
-/*
-void tx_send_packet();
-void tx_packet_is_OK();
-void tx_packet_is_Error();
-void rx_recv_packet();
-void rx_packet_is_OK();
-void rx_packet_is_Error();
-void printElapsedTime();
-*/
+
 E_APP_ST eAppSt;
 bool bNewSt;
+uint8_t u8BaseStatus;
 
 // Requires that the RF driver is initialized.
 void vdApp_Init(void)
@@ -65,20 +55,16 @@ void vdApp_Task(void)
         eAppSt = APP_ST_GET_BASE_STATUS_SEND;
       }
       else {
-        eAppSt = APP_ST_INTERNAL_ERROR;
+        eAppSt = APP_ST_ERROR;
       }
       break;
     }
 
-    case APP_ST_INTERNAL_ERROR:
+    case APP_ST_ERROR: 
     {
-      if(bIsNewState()) {
-        vdLed_FixRed();
-        vdTimeoutSet(2000);
-      }
-      if(bTimeoutExpired()) {
-        vdSetNewState(APP_ST_SLEEP);
-      }
+      vdLed_FixRed();
+      delay(2000);
+      vdSetNewState(APP_ST_SLEEP);
       break;
     }
 
@@ -107,7 +93,7 @@ void vdApp_Task(void)
           vdSetNewState(APP_ST_GET_BASE_STATUS_SEND);
         }
         else {
-          vdSetNewState(APP_ST_INTERNAL_ERROR);
+          vdSetNewState(APP_ST_ERROR);
         }
       }
       break;
@@ -116,7 +102,7 @@ void vdApp_Task(void)
     case APP_ST_GET_BASE_STATUS_SEND:
     {
       // Send packet.
-      vdRfDrv_SendPacket();
+      vdRfDrv_SendPacket(U8_PKTVAL_GET_STATUS);
       vdSetNewState(APP_ST_GET_BASE_STATUS_RECV);
 
       break;
@@ -124,32 +110,20 @@ void vdApp_Task(void)
 
     case APP_ST_GET_BASE_STATUS_RECV:
     {
-      uint8_t au8Packet;
-
       // Listen to response.
       vdLed_FixPurple();
-      vdRfDrv_RecvPacket(2000, &u8Packet); // blocking.
-
-      if(u8Packet == 1) { // Ready
-        vdSetNewState(APP_ST_BASE_READY);
-      } 
-      else
+      if( (bRfDrv_RecvPacketBlocking(2000, &u8BaseStatus)) && 
+          (U8_PKTVAL_READY == u8BaseStatus) ) 
       {
-        vdSetNewState(APP_ST_BASE_NOT_READY_OR_NOT_FOUND);
+        vdSetNewState(APP_ST_BASE_READY);
+      }
+      else {
+        vdSetNewState(APP_ST_ERROR);    
       }
       break;
     }
 
-    case APP_ST_BASE_NOT_READY_OR_NOT_FOUND: 
-    {
-      if(bIsNewState()) {
-        vdLed_FixRed();
-        delay(2000);
-        vdSetNewState(APP_ST_SLEEP);
-      }
-      break;
-    }
-
+    #define U32_BASE_RECV_TIMEOUT ((uint32_t)5000)
     case APP_ST_BASE_READY: 
     {
       if(bIsNewState()) {
@@ -157,7 +131,8 @@ void vdApp_Task(void)
         vdTimeoutSet(10000);
       }
       else if(mBUT_IsTrigPressed()) {
-        vdRfDrv_SendPacket();
+        vdRfDrv_SendPacket(U8_PKTVAL_TRIGGER);
+        vdTimeoutSet(U32_BASE_RECV_TIMEOUT);
         vdSetNewState(APP_ST_TRIG_BASE_RECV);
       }
       else if(bTimeoutExpired())
@@ -166,6 +141,42 @@ void vdApp_Task(void)
       }
       break;
     }
+
+    case APP_ST_TRIG_BASE_RECV: 
+    {
+      // Listen to response.
+      vdLed_FixOrange();
+      if(bRfDrv_RecvPacketBlocking(U32_BASE_RECV_TIMEOUT + 1, &u8BaseStatus)) 
+      {
+        if(U8_PKTVAL_PROGRESS == u8BaseStatus) {
+          vdTimeoutReload();                     // Reload timeout.
+          vdSetNewState(APP_ST_TRIG_BASE_RECV); 
+        }
+        else if(U8_PKTVAL_DONE) {
+          vdSetNewState(APP_ST_TRIG_BASE_DONE);
+        }
+        else if(U8_PKTVAL_ERROR) {
+          vdSetNewState(APP_ST_ERROR); // Clear error response of the base.
+        }
+        else{ // Unknown response.
+          vdSetNewState(APP_ST_TRIG_BASE_RECV); // Don't reload timeout!  
+        }
+      }
+      else {
+        vdSetNewState(APP_ST_ERROR); // Error because of the timeout.
+      }
+      break;
+    }
+
+    case APP_ST_TRIG_BASE_DONE: 
+    {
+      vdLed_FixGreen();
+      delay(2000);
+      vdSetNewState(APP_ST_SLEEP);
+      break;
+    }
+
+
   } //end switch
 }
 

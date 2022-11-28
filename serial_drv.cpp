@@ -4,7 +4,6 @@
 
 void vdSerialDrv_Init(const char* strVersion)
 {
-  
   Serial.begin(9600);
   vdTimeoutSet(2000);
   while ((!Serial) && (!bTimeoutExpired()));
@@ -15,5 +14,4 @@ void vdSerialDrv_Init(const char* strVersion)
   Serial.println(F(strVersion));
   Serial.println();
   Serial.println(F("Controller Starting"));
-  
 }

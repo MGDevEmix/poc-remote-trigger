@@ -13,6 +13,7 @@ void vdLed_FixRed(void);
 void vdLed_FixBlue(void);
 void vdLed_FixPurple(void);
 void vdLed_FixGreen(void);
+void vdLed_FixOrange(void);
 
 #ifdef __cplusplus
 }

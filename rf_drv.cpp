@@ -4,11 +4,15 @@
 #include <SX128XLT.h>                                          //include the appropriate library  
 #include "Settings.h"                                          //include the settings file, frequencies, LoRa settings etc 
 
+uint8_t au8Packet[3];
+
 void tx_packet_is_OK();
 void tx_packet_is_Error();
 void rx_packet_is_Error();
 void rx_packet_is_OK();
 void printElapsedTime();
+void vdSendRawPacket(uint8_t* pu8Buf, uint8_t u8Len);
+uint8_t u8RecvRawPacket(uint32_t u32Timeout_ms, uint8_t* pu8Packet, uint8_t u8MaxLen);
 
 bool bDeviceOperational;
 
@@ -28,10 +32,11 @@ uint8_t RXPacketL;                               //stores length of packet recei
 int16_t  PacketRSSI;                             //stores RSSI of received packet
 int8_t  PacketSNR;                               //stores signal to noise ratio of received packet
 
+E_RF_PROFILE eSavedRfProfile;
 
-void vdRfDrv_Init(void)
+void vdRfDrv_Init(E_RF_PROFILE eRfProfile)
 {
-
+  eSavedRfProfile = eRfProfile;
   SPI.begin();
 
   //SPI beginTranscation is normally part of library routines, but if it is disabled in library
@@ -87,71 +92,30 @@ bool bRfDrv_IsOperational(void)
   return bDeviceOperational;
 }
 
-void vdRfDrv_SendPacket(uint8_t* pu8Buf, uint8_t u8Len)
+void vdRfDrv_SendPacket(uint8_t u8Data)
 {
-  Serial.print(TXpower);                                       //print the transmit power defined
-  Serial.print(F("dBm "));
-  Serial.print(F("Packet> "));
-  Serial.flush();
-
-  TXPacketL = sizeof(buff);                                    //set TXPacketL to length of array
-  buff[TXPacketL - 1] = '*';                                   //replace null character at buffer end so its visible on reciver
-
-  LT.printASCIIPacket(buff, TXPacketL);                        //print the buffer (the sent packet) as ASCII
-
-  digitalWrite(LED1, HIGH);
-  startmS =  millis();                                         //start transmit timer
-  if (LT.transmit(buff, TXPacketL, 10000, TXpower, WAIT_TX))   //will return packet length sent if OK, otherwise 0 if transmit, timeout 10 seconds
-  {
-    endmS = millis();                                          //packet sent, note end time
-    TXPacketCount++;
-    tx_packet_is_OK();
-  }
-  else
-  {
-    tx_packet_is_Error();                                 //transmit packet returned 0, there was an error
-  }
-
-  digitalWrite(LED1, LOW);
-  Serial.println();
+  au8Packet[0] = U8_PKTVAL_CTRL; // From.
+  au8Packet[1] = U8_PKTVAL_BASE; // To.
+  au8Packet[2] = u8Data;
+  vdSendRawPacket(au8Packet, 3);
 }
 
-void vdRfDrv_RecvPacket(uint32_t u32Timeout_ms, uint8_t* pu8Packet)
+bool bRfDrv_RecvPacketBlocking(uint32_t u32Timeout_ms, uint8_t* pu8Data)
 {
-  *pu8Packet = 0xFF;
-
-  RXPacketL = LT.receive(RXBUFFER, RXBUFFER_SIZE, u32Timeout_ms, WAIT_RX); //wait for a packet to arrive with 60seconds (60000mS) timeout
-
-  digitalWrite(LED1, HIGH);                      //something has happened
-
-  if (BUZZER > 0)                                //turn buzzer on
+  static uint8_t au8RxBuf[3];
+  static bool bRet;
+  bRet = false;
+  if(3 == u8RecvRawPacket(u32Timeout_ms, au8RxBuf, sizeof(au8RxBuf))) 
   {
-    digitalWrite(BUZZER, HIGH);
+    if( (U8_PKTVAL_BASE == au8RxBuf[0]) && // From
+        (U8_PKTVAL_CTRL == au8RxBuf[1]) )  // To
+    {
+      *pu8Data = au8RxBuf[2];
+      bRet = true;
+    }
   }
-
-  PacketRSSI = LT.readPacketRSSI();              //read the recived RSSI value
-  PacketSNR = LT.readPacketSNR();                //read the received SNR value
-
-  if (RXPacketL == 0)                            //if the LT.receive() function detects an error, RXpacketL == 0
-  {
-    rx_packet_is_Error();
-  }
-  else
-  {
-    rx_packet_is_OK();
-    *pu8Packet = 0x01;
-  }
-
-  if (BUZZER > 0)
-  {
-    digitalWrite(BUZZER, LOW);                    //buzzer off
-  }
-
-  digitalWrite(LED1, LOW);                        //LED off
-
-  Serial.println();
+  return bRet;
 }
-
 
 // ==================== PRIVATE =============================
 
@@ -256,4 +220,86 @@ void printElapsedTime()
   seconds = millis() / 1000;
   Serial.print(seconds, 0);
   Serial.print(F("s"));
+}
+
+void vdPrintHexPacket(uint8_t* pu8Buf, uint8_t u8Len) {
+  Serial.print('[');
+  for(uint8_t i = 0; i < u8Len; i++) {
+    Serial.print(pu8Buf[i], HEX);
+    if(i < u8Len - 1) {
+      Serial.print(' ');
+    }
+  }
+  Serial.print(']');
+}
+
+
+
+void vdSendRawPacket(uint8_t* pu8Buf, uint8_t u8Len)
+{
+  Serial.print(TXpower);                                       //print the transmit power defined
+  Serial.print(F("dBm "));
+  Serial.print(F("Packet> "));
+  Serial.flush();
+
+  vdPrintHexPacket(pu8Buf, u8Len);
+
+  digitalWrite(LED1, HIGH);
+  startmS =  millis();                                         //start transmit timer
+  if (LT.transmit(pu8Buf, u8Len, 10000, TXpower, WAIT_TX))   //will return packet length sent if OK, otherwise 0 if transmit, timeout 10 seconds
+  {
+    endmS = millis();                                          //packet sent, note end time
+    TXPacketCount++;
+    tx_packet_is_OK();
+  }
+  else
+  {
+    tx_packet_is_Error();                                 //transmit packet returned 0, there was an error
+  }
+
+  digitalWrite(LED1, LOW);
+  Serial.println();
+}
+
+uint8_t u8RecvRawPacket(uint32_t u32Timeout_ms, uint8_t* pu8Packet, uint8_t u8MaxLen)
+{
+  uint8_t u8RetLen = 0;
+  memset(pu8Packet, 0xFF, u8MaxLen);
+
+  RXPacketL = LT.receive(RXBUFFER, RXBUFFER_SIZE, u32Timeout_ms, WAIT_RX); //wait for a packet to arrive with 60seconds (60000mS) timeout
+
+  if(u8MaxLen >= RXPacketL) {
+    u8RetLen = RXPacketL;
+    memcpy(pu8Packet, RXBUFFER, u8RetLen);
+  }
+  
+  digitalWrite(LED1, HIGH);                      //something has happened
+
+  if (BUZZER > 0)                                //turn buzzer on
+  {
+    digitalWrite(BUZZER, HIGH);
+  }
+
+  PacketRSSI = LT.readPacketRSSI();              //read the recived RSSI value
+  PacketSNR = LT.readPacketSNR();                //read the received SNR value
+
+  if (RXPacketL == 0)                            //if the LT.receive() function detects an error, RXpacketL == 0
+  {
+    rx_packet_is_Error();
+  }
+  else
+  {
+    rx_packet_is_OK();
+  }
+
+  if (BUZZER > 0)
+  {
+    digitalWrite(BUZZER, LOW);                    //buzzer off
+  }
+
+  digitalWrite(LED1, LOW);                        //LED off
+
+  Serial.println();
+
+  return u8RetLen;
 }
