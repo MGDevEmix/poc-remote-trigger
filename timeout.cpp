@@ -3,9 +3,9 @@
 
 #include <delay.h>
 
-
 uint32_t u32TimeSaved;
 uint32_t u32TimeoutSaved_ms;
+
 void vdTimeoutSet(uint32_t u32Timeout_ms)
 {
 	u32TimeSaved = millis();
