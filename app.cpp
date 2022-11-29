@@ -5,6 +5,8 @@
 #include "timeout.h"
 #include "actuator.h"
 
+#define U32_ACTUATOR_CMD_TIME ((uint32_t)3000)
+
 enum E_APP_ST {
   APP_ST_INIT,
   APP_ST_ERROR,
@@ -56,11 +58,10 @@ void vdApp_Task(void)
       break;
     }
 
-    case APP_ST_REWIND: 
-    {
+    case APP_ST_REWIND: {
       if(bIsNewState()){
         vdLed_FixPurple();
-        vdTimeoutSet(10000);
+        vdTimeoutSet(U32_ACTUATOR_CMD_TIME);
         vdActuator_Rewind();
         Serial.print(F("Rewinding..."));
       }
@@ -74,8 +75,7 @@ void vdApp_Task(void)
       break;
     }
 
-    case APP_ST_READY: 
-    {
+    case APP_ST_READY: {
       if(bIsNewState()){
         vdLed_FixGreen();
         Serial.print(F("Ready"));
@@ -96,7 +96,7 @@ void vdApp_Task(void)
     {
       if(bIsNewState()){
         vdLed_FixOrange();
-        vdTimeoutSet(10000);
+        vdTimeoutSet(U32_ACTUATOR_CMD_TIME);
         vdActuator_Trigger();
         Serial.print(F("Trigger..."));
       }
