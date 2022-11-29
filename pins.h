@@ -29,4 +29,8 @@
 #define PIN_CHB_BRAKE  9
 #define PIN_CHB_CURR   PIN_A1
 
+#define LED_R PIN_A4
+#define LED_B PIN_A3
+#define LED_G PIN_A2
+
 #endif // #ifndef __PINS_H__

@@ -29,6 +29,8 @@ void vdApp_Init(void)
   Serial.print(F("Base ready"));
   Serial.println();
   vdSetNewState(APP_ST_INIT);
+
+
 }
 
 void vdApp_Task(void)
@@ -95,7 +97,7 @@ void vdApp_Task(void)
     case APP_ST_TRIGGER: 
     {
       if(bIsNewState()){
-        vdLed_FixOrange();
+        vdLed_FixPurple();
         vdTimeoutSet(U32_ACTUATOR_CMD_TIME);
         vdActuator_Trigger();
         Serial.print(F("Trigger..."));

@@ -19,7 +19,7 @@
 
 #define Program_Version "V0.0"
 
-//#include "led.h"
+#include "led.h"
 #include "serial_drv.h"
 #include "rf_drv.h"
 #include "actuator.h"
@@ -27,9 +27,9 @@
 
 void setup() 
 {
-  //vdLed_Init();       
-  //vdLed_FixBlue();
-
+  vdLed_Init();       
+  vdLed_FixBlue();
+  delay(2000);
   vdSerialDrv_Init(Program_Version);
   vdRfDrv_Init(RF_PROFILE_BASE);
   vdActuator_Init();

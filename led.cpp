@@ -1,4 +1,7 @@
+#include "api/Common.h"
 #include "led.h"
+
+#include "pins.h"
 
 //#include <Adafruit_DotStar.h>
 
@@ -6,44 +9,52 @@
 
 void vdLed_Init(void)
 {
-//  rgbLed.begin(); // Initialize pins for output
-//  rgbLed.setBrightness(10); // 10% because consume too much power.
-//  rgbLed.setPixelColor(0, 0, 0, 0); // Off.
-//  rgbLed.show(); 
+  digitalWrite(LED_R, LOW);
+  digitalWrite(LED_G, LOW);
+  digitalWrite(LED_B, LOW);
+  pinMode(LED_R, OUTPUT);   
+  pinMode(LED_G, OUTPUT);  
+  pinMode(LED_B, OUTPUT);  
 }
 
 void vdLed_Off(void)
 {
-//  rgbLed.setPixelColor(0, 0, 0, 0);
-//  rgbLed.show(); 
+  digitalWrite(LED_R, LOW);
+  digitalWrite(LED_G, LOW);
+  digitalWrite(LED_B, LOW);
 }
 
 void vdLed_FixRed(void)
 {
-//  rgbLed.setPixelColor(0, 255, 0, 0);
-//  rgbLed.show(); 
+  digitalWrite(LED_R, HIGH);
+  digitalWrite(LED_G, LOW);
+  digitalWrite(LED_B, LOW);
 }
 
 void vdLed_FixBlue(void)
 {
-//  rgbLed.setPixelColor(0, 0, 0, 255);
-//  rgbLed.show(); 
+  digitalWrite(LED_R, LOW);
+  digitalWrite(LED_G, LOW);
+  digitalWrite(LED_B, HIGH);
 }
 
 void vdLed_FixPurple(void)
 {
-//  rgbLed.setPixelColor(0, 148, 0, 211);
-//  rgbLed.show(); 
+  digitalWrite(LED_R, HIGH);
+  digitalWrite(LED_G, LOW);
+  digitalWrite(LED_B, HIGH);
 }
 
 void vdLed_FixGreen(void)
 {
-//  rgbLed.setPixelColor(0, 0, 255, 0);
-//  rgbLed.show(); 
+  digitalWrite(LED_R, LOW);
+  digitalWrite(LED_G, HIGH);
+  digitalWrite(LED_B, LOW);
 }
 
 void vdLed_FixOrange(void)
 {
-//  rgbLed.setPixelColor(0, 255, 165, 0);
-//  rgbLed.show(); 
+  digitalWrite(LED_R, HIGH);
+  digitalWrite(LED_G, HIGH);
+  digitalWrite(LED_B, LOW);
 }
