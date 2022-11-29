@@ -1,7 +1,7 @@
 #include "rf_drv.h"
 
 #include <SPI.h>                                               //the SX128X device is SPI based so load the SPI library                                         
-#include <SX128XLT.h>                                          //include the appropriate library  
+#include "SX128XLT.h"                                          //include the appropriate library  
 #include "Settings.h"                                          //include the settings file, frequencies, LoRa settings etc 
 
 uint8_t au8Packet[3];

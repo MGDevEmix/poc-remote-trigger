@@ -18,7 +18,7 @@ enum E_APP_ST {
   APP_ST_GET_BASE_STATUS_SEND,
   APP_ST_GET_BASE_STATUS_RECV,
   APP_ST_BASE_READY,
-  APP_ST_TRIG_BASE_RECV,
+  APP_ST_TRIG_BASE_PROGRESS,
   APP_ST_TRIG_BASE_DONE,
 };
 
@@ -41,6 +41,7 @@ void vdApp_Init(void)
 
   Serial.print(F("Controller ready"));
   Serial.println();
+  vdSetNewState(APP_ST_INIT);
 }
 
 void vdApp_Task(void)
@@ -84,7 +85,7 @@ void vdApp_Task(void)
         vdLed_FixBlue();
         USBDevice.attach(); 
         Serial.begin(9600);
-        vdTimeoutSet(2000);
+        vdTimeoutSet(1000);
         while((!Serial) && (!bTimeoutExpired()));
 
         // Check RF driver is operational.
@@ -130,9 +131,10 @@ void vdApp_Task(void)
         vdTimeoutSet(10000);
       }
       else if(mBUT_IsTrigPressed()) {
-        vdRfDrv_SendPacket(U8_PKTVAL_TRIGGER);
-        vdTimeoutSet(U32_BASE_RECV_TIMEOUT);
-        vdSetNewState(APP_ST_TRIG_BASE_RECV);
+        vdSetNewState(APP_ST_TRIG_BASE_PROGRESS);
+      }
+      else if(mBUT_IsArmdPressed()) {
+        vdSetNewState(APP_ST_GET_BASE_STATUS_SEND);
       }
       else if(bTimeoutExpired())
       {
@@ -141,15 +143,25 @@ void vdApp_Task(void)
       break;
     }
 
-    case APP_ST_TRIG_BASE_RECV: 
-    {
-      // Listen to response.
-      vdLed_FixOrange();
-      if(bRfDrv_RecvPacketBlocking(U32_BASE_RECV_TIMEOUT + 1, &u8BaseStatus)) 
+    case APP_ST_TRIG_BASE_PROGRESS: {
+      static bool bTrigDone;
+      static uint8_t u8NbNoResponses;
+      static bool bNoResponse;
+
+      if(bIsNewState()) {
+        bTrigDone = false;
+        u8NbNoResponses = 0;
+        vdLed_FixOrange();
+      }
+
+      bNoResponse = false;
+      vdRfDrv_SendPacket(bTrigDone ? U8_PKTVAL_GET_STATUS : U8_PKTVAL_TRIGGER);
+      bTrigDone = true;
+      if(bRfDrv_RecvPacketBlocking(500, &u8BaseStatus)) 
       {
         if(U8_PKTVAL_PROGRESS == u8BaseStatus) {
-          vdTimeoutReload();                     // Reload timeout.
-          vdSetNewState(APP_ST_TRIG_BASE_RECV); 
+          u8NbNoResponses = 0;
+          delay(500);
         }
         else if(U8_PKTVAL_DONE) {
           vdSetNewState(APP_ST_TRIG_BASE_DONE);
@@ -158,11 +170,22 @@ void vdApp_Task(void)
           vdSetNewState(APP_ST_ERROR); // Clear error response of the base.
         }
         else{ // Unknown response.
-          vdSetNewState(APP_ST_TRIG_BASE_RECV); // Don't reload timeout!  
+          u8NbNoResponses++;
+          bNoResponse = true;
         }
       }
       else {
-        vdSetNewState(APP_ST_ERROR); // Error because of the timeout.
+        
+        bNoResponse = true;
+      }
+
+      if(bNoResponse) {
+        if(++u8NbNoResponses >= 5) {
+          vdSetNewState(APP_ST_ERROR);
+        }
+        else {
+          delay(500);
+        }
       }
       break;
     }
