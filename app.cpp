@@ -1,4 +1,3 @@
-#include "delay.h"
 #include "app.h"
 
 #include <ArduinoLowPower.h>

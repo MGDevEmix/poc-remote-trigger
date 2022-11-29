@@ -1,8 +1,6 @@
 
 #include "timeout.h"
 
-#include <delay.h>
-
 uint32_t u32TimeSaved;
 uint32_t u32TimeoutSaved_ms;
 
