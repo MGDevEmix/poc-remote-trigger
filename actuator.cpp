@@ -16,13 +16,13 @@ void vdActuator_Init(void)
 
 void vdActuator_Rewind(void)
 {
-  digitalWrite(PIN_CHA_DIR, LOW);
+  digitalWrite(PIN_CHA_DIR, HIGH);
   analogWrite(PIN_CHA_PWM, 255);
 }
 
 void vdActuator_Trigger(void)
 {
-  digitalWrite(PIN_CHA_DIR, HIGH);
+  digitalWrite(PIN_CHA_DIR, LOW);
   analogWrite(PIN_CHA_PWM, 255);
 }
 

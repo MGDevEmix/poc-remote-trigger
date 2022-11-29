@@ -19,12 +19,14 @@ bool bIsNewState(void);
 
 E_APP_ST eAppSt;
 bool bNewSt;
+uint8_t u8DataFromCtrl;
 
 // Requires that the RF driver is initialized.
 void vdApp_Init(void)
 {
   Serial.print(F("Base ready"));
   Serial.println();
+  vdSetNewState(APP_ST_INIT);
 }
 
 void vdApp_Task(void)
@@ -58,8 +60,9 @@ void vdApp_Task(void)
     {
       if(bIsNewState()){
         vdLed_FixPurple();
-        vdTimeoutSet(30000);
+        vdTimeoutSet(10000);
         vdActuator_Rewind();
+        Serial.print(F("Rewinding..."));
       }
       else if(bTimeoutExpired()) {
         vdSetNewState(APP_ST_READY);
@@ -75,9 +78,50 @@ void vdApp_Task(void)
     {
       if(bIsNewState()){
         vdLed_FixGreen();
+        Serial.print(F("Ready"));
       }
-      else if(bRfDrv_RecvStatusReqBlocking(10000)) {
-        vdRfDrv_SendPacket(U8_PKTVAL_READY);
+      else if(bRfDrv_RecvPacketBlocking(10000, &u8DataFromCtrl)) {
+        if(U8_PKTVAL_GET_STATUS == u8DataFromCtrl) {
+          vdRfDrv_SendPacket(U8_PKTVAL_READY);
+        }
+        else if(U8_PKTVAL_TRIGGER == u8DataFromCtrl) {
+          vdRfDrv_SendPacket(U8_PKTVAL_PROGRESS);
+          vdSetNewState(APP_ST_TRIGGER);
+        }
+      }
+      break;
+    }
+
+    case APP_ST_TRIGGER: 
+    {
+      if(bIsNewState()){
+        vdLed_FixOrange();
+        vdTimeoutSet(10000);
+        vdActuator_Trigger();
+        Serial.print(F("Trigger..."));
+      }
+      else if(bTimeoutExpired()) {
+        vdSetNewState(APP_ST_DONE);
+        vdActuator_Stop();
+      }
+      else if(bRfDrv_RecvStatusReqBlocking(u32TimeoutGetLeftTime() + 1)) {
+        vdRfDrv_SendPacket(U8_PKTVAL_PROGRESS);
+      }
+      break;
+    }
+
+    case APP_ST_DONE: 
+    {
+      if(bIsNewState()){
+        vdLed_FixGreen();
+        vdTimeoutSet(2000);
+        Serial.print(F("Done"));
+      }
+      else if(bTimeoutExpired()) {
+        vdSetNewState(APP_ST_REWIND);
+      }
+      else if(bRfDrv_RecvStatusReqBlocking(u32TimeoutGetLeftTime() + 1)) {
+        vdRfDrv_SendPacket(U8_PKTVAL_DONE);
       }
       break;
     }

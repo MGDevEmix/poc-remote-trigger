@@ -123,6 +123,8 @@ bool bRfDrv_RecvStatusReqBlocking(uint32_t u32Timeout_ms)
   static uint8_t au8RxBuf[3];
   static bool bRet;
   bRet = false;
+  Serial.print("bRfDrv_RecvStatusReqBlocking:");
+  Serial.println(u32Timeout_ms);
   if(3 == u8RecvRawPacket(u32Timeout_ms, au8RxBuf, sizeof(au8RxBuf))) 
   {
     if( (U8_PKTVAL_CTRL == au8RxBuf[0]) && // From
@@ -241,7 +243,7 @@ void printElapsedTime()
 }
 
 void vdPrintHexPacket(uint8_t* pu8Buf, uint8_t u8Len) {
-  Serial.print('[');
+  Serial.print("\n[");
   for(uint8_t i = 0; i < u8Len; i++) {
     Serial.print(pu8Buf[i], HEX);
     if(i < u8Len - 1) {
@@ -308,6 +310,7 @@ uint8_t u8RecvRawPacket(uint32_t u32Timeout_ms, uint8_t* pu8Packet, uint8_t u8Ma
   else
   {
     rx_packet_is_OK();
+    vdPrintHexPacket(RXBUFFER, RXPacketL);
   }
 
   if (BUZZER > 0)

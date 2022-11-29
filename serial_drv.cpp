@@ -4,7 +4,7 @@
 
 void vdSerialDrv_Init(const char* strVersion)
 {
-  Serial.begin(9600);
+  Serial.begin(1000000);
   vdTimeoutSet(2000);
   while ((!Serial) && (!bTimeoutExpired()));
   Serial.println();

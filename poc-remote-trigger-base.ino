@@ -37,6 +37,6 @@ void setup()
 }
 
 void loop() {
- // vdApp_Task();
+  vdApp_Task();
 }
 
