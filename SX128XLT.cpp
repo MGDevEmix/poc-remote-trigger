@@ -142,6 +142,9 @@ bool SX128XLT::begin(int8_t pinNSS, int8_t pinNRESET, int8_t pinRFBUSY, int8_t p
 
   resetDevice();
 
+ // testFun();
+ // while(1);
+
   if (checkDevice())
   {
     return true;
@@ -667,6 +670,16 @@ bool SX128XLT::checkDevice()
   {
     return false;
   }
+}
+
+void SX128XLT::testFun()
+{
+  readRegister(0x0000);
+  readRegister(0x0000); 
+  readRegister(0x0891);             
+  readRegister(0x0891);
+  uint8_t u8data[128];
+  readRegisters((uint16_t)0x0891, (uint8_t *)&u8data, (uint16_t)10);
 }
 
 

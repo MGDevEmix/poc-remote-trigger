@@ -33,6 +33,7 @@ class SX128XLT  {
     void readCommand( uint8_t Opcode, uint8_t *buffer, uint16_t size );
     void resetDevice();
     bool checkDevice();
+    void testFun();
     void setupLoRa(uint32_t frequency, int32_t offset, uint8_t modParam1, uint8_t modParam2, uint8_t  modParam3);
     void setMode(uint8_t modeconfig);
     void setRegulatorMode(uint8_t mode);
