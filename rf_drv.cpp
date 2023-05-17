@@ -123,8 +123,8 @@ bool bRfDrv_RecvStatusReqBlocking(uint32_t u32Timeout_ms)
   static uint8_t au8RxBuf[3];
   static bool bRet;
   bRet = false;
-  Serial.print("bRfDrv_RecvStatusReqBlocking:");
-  Serial.println(u32Timeout_ms);
+  //Serial.print("bRfDrv_RecvStatusReqBlocking:");
+  //Serial.println(u32Timeout_ms);
   if(3 == u8RecvRawPacket(u32Timeout_ms, au8RxBuf, sizeof(au8RxBuf))) 
   {
     if( (U8_PKTVAL_CTRL == au8RxBuf[0]) && // From
@@ -205,11 +205,11 @@ void rx_packet_is_Error()
   uint16_t IRQStatus;
   IRQStatus = LT.readIrqStatus();                   //read the LoRa device IRQ status register
 
-  printElapsedTime();                               //print elapsed time to Serial Monitor
+  //printElapsedTime();                               //print elapsed time to Serial Monitor
 
   if (IRQStatus & IRQ_RX_TIMEOUT)                   //check for an RX timeout
   {
-    Serial.print(F(" RXTimeout"));
+    //Serial.print(F(" RXTimeout"));
   }
   else
   {
@@ -320,7 +320,7 @@ uint8_t u8RecvRawPacket(uint32_t u32Timeout_ms, uint8_t* pu8Packet, uint8_t u8Ma
 
   digitalWrite(LED1, LOW);                        //LED off
 
-  Serial.println();
+  //Serial.println();
 
   return u8RetLen;
 }

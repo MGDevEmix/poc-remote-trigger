@@ -23,7 +23,7 @@ SPIClassSAMD SPI2(&sercom2, SPI2_MISO, SPI2_SCK, SPI2_MOSI, SPI_PAD_2_SCK_3, SER
 // SPIClassSAMD(SERCOM *p_sercom, uint8_t uc_pinMISO, uint8_t uc_pinSCK, uint8_t uc_pinMOSI, SercomSpiTXPad PadTx, SercomRXPad PadRx)
 
 
-#define SX128XDEBUG                //enable debug messages
+//#define SX128XDEBUG                //enable debug messages
 #define RANGINGDEBUG               //enable debug messages for ranging
 #define SX128XDEBUGRXTX            //enable debug messages for RX TX switching
 #define SX128XDEBUGPINS            //enable pin allocation debug messages
