@@ -10,7 +10,7 @@
 #include <Wire.h>
 #include "SparkFun_LIS2DH12.h"
 
-#define U32_ACTUATOR_CMD_TIME ((uint32_t)3000)
+#define U32_ACTUATOR_CMD_TIME ((uint32_t)4000)
 
 enum E_APP_ST {
   APP_ST_INIT,
