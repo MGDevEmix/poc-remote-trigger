@@ -83,7 +83,7 @@ void vdRfDrv_Init(E_RF_PROFILE eRfProfile)
   LT.printOperatingSettings();                           //reads and prints the configured operating settings, useful check
   Serial.println();
   Serial.println();
-  LT.printRegisters(0x900, 0x9FF);                       //print contents of device registers
+  LT.printRegisters(0x800, 0x8FF);                       //print contents of device registers
   Serial.println();
   Serial.println();
 }
