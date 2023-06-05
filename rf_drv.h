@@ -32,6 +32,8 @@ bool bRfDrv_RecvStatusReqBlocking(uint32_t u32Timeout_ms);
 void vdRfDrv_SetRxContinuous(void);
 bool bRfDrv_RecvStatus(void);
 
+void vdRfDrv_SetSleep(void);
+
 #ifdef __cplusplus
 }
 #endif

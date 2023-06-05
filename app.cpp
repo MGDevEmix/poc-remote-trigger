@@ -13,11 +13,12 @@
 // INCLUDES ********************************************************************
 
 #include "app.h"
+#include "pins.h"
 
 // Arduino specific.
 #include "api/Common.h"
 #include <Wire.h>
-#include "pins.h"
+#include <ArduinoLowPower.h>
 
 // C++ code.
 #include "SparkFun_LIS2DH12.h"
@@ -73,6 +74,7 @@ static bool loraSendPkt(uint8_t u8Data);
 static void parseString(String str);
 static char* getStrAppSt(appSt_t appSt);
 // Callbacks.
+static void irqBut1WakeUp(void);
 static void appInNewStCallback(uint8_t prevSt, uint8_t enterSt);
 
 //******************************************************************************
@@ -85,6 +87,9 @@ void app_init(void)
 {
   // Init Hw.
   pinMode(WARNING_BUZZER, OUTPUT); //$TODO : init pins.
+
+  // Low power.
+  LowPower.attachInterruptWakeup(RF_DIO1, irqBut1WakeUp, RISING);
 
   // Init vars.
   Serial.print(F("Base ready"));
@@ -140,6 +145,9 @@ void vdApp_Task(void)
       else if(drvTime_isTimedOut(&timeout)) {
         drvLed_off();
         mBuzOff();
+        //vdRfDrv_SetSleep(); // Keep rx and wakeup on DIO1!
+        LowPower.sleep();
+        sm.nextSt = appSt_init; // Try to reinit after wakeup.
       }
       break;
     }

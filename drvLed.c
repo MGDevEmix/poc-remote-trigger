@@ -138,6 +138,9 @@ void drvLed_off(void)
   sm.nextSt = ledSt_off;
   tempo.bRunning = false;
   currentColor = ledColor_off;
+
+  // Do it right now.
+  setColor(ledColor_off);
 }
 
 //******************************************************************************

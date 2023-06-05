@@ -57,35 +57,38 @@ void vdRfDrv_Init(E_RF_PROFILE eRfProfile)
     bDeviceOperational = false;
   }
 
-  //The function call list below shows the complete setup for the LoRa device using the information defined in the
-  //Settings.h file.
-  //The 'Setup LoRa device' list below can be replaced with a single function call;
-  //LT.setupLoRa(Frequency, Offset, SpreadingFactor, Bandwidth, CodeRate);
+  if(bDeviceOperational)
+  {
+    //The function call list below shows the complete setup for the LoRa device using the information defined in the
+    //Settings.h file.
+    //The 'Setup LoRa device' list below can be replaced with a single function call;
+    //LT.setupLoRa(Frequency, Offset, SpreadingFactor, Bandwidth, CodeRate);
 
-  //***************************************************************************************************
-  //Setup LoRa device
-  //***************************************************************************************************
-  LT.setMode(MODE_STDBY_RC);
-  LT.setRegulatorMode(USE_LDO);
-  LT.setPacketType(PACKET_TYPE_LORA);
-  LT.setRfFrequency(Frequency, Offset);
-  LT.setBufferBaseAddress(0, 0);
-  LT.setModulationParams(SpreadingFactor, Bandwidth, CodeRate);
-  LT.setPacketParams(12, LORA_PACKET_VARIABLE_LENGTH, 255, LORA_CRC_ON, LORA_IQ_NORMAL, 0, 0);
-  LT.setDioIrqParams(IRQ_RADIO_ALL, (IRQ_TX_DONE + IRQ_RX_TX_TIMEOUT), 0, 0);
-  LT.setHighSensitivity();
-  //LT.setLowPowerRX();
-  //***************************************************************************************************
+    //***************************************************************************************************
+    //Setup LoRa device
+    //***************************************************************************************************
+    LT.setMode(MODE_STDBY_RC);
+    LT.setRegulatorMode(USE_LDO);
+    LT.setPacketType(PACKET_TYPE_LORA);
+    LT.setRfFrequency(Frequency, Offset);
+    LT.setBufferBaseAddress(0, 0);
+    LT.setModulationParams(SpreadingFactor, Bandwidth, CodeRate);
+    LT.setPacketParams(12, LORA_PACKET_VARIABLE_LENGTH, 255, LORA_CRC_ON, LORA_IQ_NORMAL, 0, 0);
+    LT.setDioIrqParams(IRQ_RADIO_ALL, (IRQ_TX_DONE + IRQ_RX_TX_TIMEOUT), 0, 0);
+    LT.setHighSensitivity();
+    //LT.setLowPowerRX();
+    //***************************************************************************************************
 
-  Serial.println();
-  LT.printModemSettings();                               //reads and prints the configured LoRa settings, useful check
-  Serial.println();
-  LT.printOperatingSettings();                           //reads and prints the configured operating settings, useful check
-  Serial.println();
-  Serial.println();
-  LT.printRegisters(0x800, 0x8FF);                       //print contents of device registers
-  Serial.println();
-  Serial.println();
+    Serial.println();
+    LT.printModemSettings();                               //reads and prints the configured LoRa settings, useful check
+    Serial.println();
+    LT.printOperatingSettings();                           //reads and prints the configured operating settings, useful check
+    Serial.println();
+    Serial.println();
+    LT.printRegisters(0x800, 0x8FF);                       //print contents of device registers
+    Serial.println();
+    Serial.println();
+  }
 }
 
 bool bRfDrv_IsOperational(void)
@@ -170,6 +173,11 @@ bool bRfDrv_RecvStatus(void)
     }
   }
   return bRet;
+}
+
+void vdRfDrv_SetSleep(void)
+{
+  LT.setSleep(0);
 }
 
 

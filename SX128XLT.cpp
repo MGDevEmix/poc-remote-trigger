@@ -145,11 +145,13 @@ bool SX128XLT::begin(int8_t pinNSS, int8_t pinNRESET, int8_t pinRFBUSY, int8_t p
  // testFun();
  // while(1);
 
+  Serial.println(F("Check device..."));
   if (checkDevice())
   {
+    Serial.println(F("ok"));
     return true;
   }
-
+  Serial.println(F("error"));
   return false;
 }
 
@@ -427,9 +429,9 @@ void SX128XLT::checkBusy()
     if ( ((uint32_t) (millis() - startmS) > 9))   //wait 10mS for busy to complete
     {
       Serial.println(F("ERROR - Busy Timeout1!"));
-      resetDevice();
-      setMode(MODE_STDBY_RC);
-      config();                                   //re-run saved config
+      //resetDevice();
+      //setMode(MODE_STDBY_RC);
+      //config();                                   //re-run saved config
       break;
     }
   } while (digitalRead(_RFBUSY));
