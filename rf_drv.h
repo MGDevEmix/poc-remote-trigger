@@ -28,6 +28,10 @@ void vdRfDrv_SendPacket(uint8_t);
 bool bRfDrv_RecvPacketBlocking(uint32_t u32Timeout_ms, uint8_t* pu8Data);
 bool bRfDrv_RecvStatusReqBlocking(uint32_t u32Timeout_ms);
 
+// Rx continuous non blocking.
+void vdRfDrv_SetRxContinuous(void);
+bool bRfDrv_RecvStatus(void);
+
 #ifdef __cplusplus
 }
 #endif

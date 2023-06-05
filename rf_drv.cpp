@@ -118,6 +118,7 @@ bool bRfDrv_RecvPacketBlocking(uint32_t u32Timeout_ms, uint8_t* pu8Data)
   return bRet;
 }
 
+
 bool bRfDrv_RecvStatusReqBlocking(uint32_t u32Timeout_ms)
 {
   static uint8_t au8RxBuf[3];
@@ -136,6 +137,41 @@ bool bRfDrv_RecvStatusReqBlocking(uint32_t u32Timeout_ms)
   }
   return bRet;
 }
+
+void vdRfDrv_SetRxContinuous(void)
+{
+  LT.setDioIrqParams(IRQ_RADIO_ALL, (IRQ_RX_DONE + IRQ_RX_TX_TIMEOUT + IRQ_HEADER_ERROR), 0, 0);  //set for IRQ on RX done or timeout
+  LT.setRx(0xFFFF);
+}
+
+bool bRfDrv_RecvStatus(void)
+{
+  static bool bRet;
+  bRet = false;
+  if(digitalRead(RF_DIO1))
+  {
+    uint8_t regdata = LT.readIrqStatus();
+    LT.clearIrqStatus(IRQ_RADIO_ALL);
+
+    if ( (regdata & IRQ_HEADER_ERROR) | (regdata & IRQ_CRC_ERROR) | (regdata & IRQ_RX_TX_TIMEOUT ) | (regdata & IRQ_SYNCWORD_ERROR )) //check if any of the preceding IRQs is set
+    {  }                       //packet is errored somewhere so return 0
+    else
+    {
+      static uint8_t au8RxBuf[3];
+      if(3 == LT.readPacket(au8RxBuf, 3))
+      {
+        if( (U8_PKTVAL_CTRL == au8RxBuf[0]) && // From
+            (U8_PKTVAL_BASE == au8RxBuf[1]) && // To
+            (U8_PKTVAL_GET_STATUS == au8RxBuf[2]) )  
+        {
+          bRet = true;
+        }
+      }
+    }
+  }
+  return bRet;
+}
+
 
 // ==================== PRIVATE =============================
 

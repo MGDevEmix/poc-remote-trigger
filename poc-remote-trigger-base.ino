@@ -1,45 +1,58 @@
-/*******************************************************************************************************
-  Programs for Arduino - Copyright of the author DevMG - 24/11/22
+//******************************************************************************
+//* Projet : Base
+//* All Rights Reserved 2023 DevMG
+//* This program contains proprietary information which is a trade
+//* secret of DevMG and/or its affiliates and also is protected as
+//* an unpublished work under applicable Copyright laws. Recipient is
+//* to retain this program in confidence and is not permitted to use or
+//* make copies thereof other than as permitted in a written agreement
+//* with DevMG, unless otherwise expressly allowed by applicable laws
+//* DevMG - 2 Impasse d'Amsterdam 49460 Montreuil-Juigne
+//******************************************************************************
 
-  This program is supplied as is, it is up to the user of the program to decide if the program is
-  suitable for the intended purpose and free from errors.
-*******************************************************************************************************/
+//******************************************************************************
+//* Hardware Information:
+//* - MCU      : Arduino Zero
+//* - IDE      : Arduino IDE 2.1.0
+//* - COMPILER : Arduino
+//******************************************************************************
 
-/*******************************************************************************************************
-  Program Operation - This project is a POC for the remote trigger using sx1280. Firmware is based on
-  Stuarts Project. It requires SX12XX-LoRa-master library to be installed.
+// INCLUDES ********************************************************************
 
-  This branch is the base, mainly a RF receiver (but not only) that waits a command from the remote
-  controller. It controls a linear actuator and embeds a buzzer and a RGB led. 
-
-  The board is Arduino UNO + custom shield SX1280 with DLP-RFS1280.
-
-  Serial monitor baud rate is set at 9600.
-*******************************************************************************************************/
-
-#define Program_Version "V0.0"
-
+// Portable C code.
 #include "drvLed.h"
+
+// Non portable C code.
+#include "app.h"
 #include "serial_drv.h"
 #include "rf_drv.h"
 #include "actuator.h"
-#include "app.h"
-#include "drvLed.h"
+
+// DEFINES *********************************************************************
+
+#define Program_Version "V0.0"
+
+// TYPEDEFS ********************************************************************
+// VARIABLES *******************************************************************
+// FUNCTIONS *******************************************************************
 
 void setup() 
 {
-  //vdLed_Init();       
-  //vdLed_FixBlue();
   delay(2000);
+
+  // Init drivers.
   vdSerialDrv_Init(Program_Version);
   vdRfDrv_Init(RF_PROFILE_BASE);
   vdActuator_Init();
-  app_init(); 
   drvLed_init();
+
+  // Init app.
+  app_init(); 
 }
 
 void loop() {
   vdApp_Task();
   drvLed_task();
 }
+
 

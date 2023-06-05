@@ -60,6 +60,12 @@ void vdLed_FixOrange(void);
 //******************************************************************************
 void drvLed_init(void)
 {
+  // Init hw.
+  pinMode(LED_R, OUTPUT);   
+  pinMode(LED_G, OUTPUT);  
+  pinMode(LED_B, OUTPUT);  
+  
+  // Init vars.
   sm_initInst(&sm, ledSt_off, NULL);
   tempo.bRunning = false;
   currentColor = ledColor_off;

@@ -1,6 +1,5 @@
-
 //******************************************************************************
-//* Projet : Remote
+//* Projet : Base
 //* All Rights Reserved 2023 DevMG
 //* This program contains proprietary information which is a trade
 //* secret of DevMG and/or its affiliates and also is protected as
@@ -9,13 +8,6 @@
 //* make copies thereof other than as permitted in a written agreement
 //* with DevMG, unless otherwise expressly allowed by applicable laws
 //* DevMG - 2 Impasse d'Amsterdam 49460 Montreuil-Juigne
-//******************************************************************************
-
-//******************************************************************************
-//* Hardware Information:
-//* - MCU      : Arduino Zero
-//* - IDE      : Arduino IDE 2.1.0
-//* - COMPILER : Arduino
 //******************************************************************************
 
 // INCLUDES ********************************************************************
@@ -32,6 +24,7 @@
 
 // Portable C code.
 #include "drvLed.h"
+#include "drvTime.h"
 #include "libSm.h"
 
 // Non portable C code.
@@ -44,9 +37,13 @@
 #define ACTUATOR_CMD_TIME ((uint32_t)4000)
 
 // Led pulses.
-#define LED_PULSE_ON (50)
+#define LED_PULSE_ON (200)
 #define LED_PULSE_OFF_SLOW_BLINK (1000)
-#define LED_PULSE_OFF_FAST_BLINK (100)
+#define LED_PULSE_OFF_FAST_BLINK (200)
+
+// Buzzer
+#define mBuzOn()  digitalWrite(WARNING_BUZZER, HIGH);
+#define mBuzOff() digitalWrite(WARNING_BUZZER, LOW);
 
 // TYPEDEFS ********************************************************************
 
@@ -62,14 +59,20 @@ enum appSt_t {
 // VARIABLES *******************************************************************
 
 static sm_t sm;
-static uint8_t u8DataFromCtrl;
+static sTimeout_t timeout;
+static uint8_t u8DataFromCtrl; // $TODO: to del ?
+
+// Accel vars.
 static SPARKFUN_LIS2DH12 accel;       //Create instance
 
 // FUNCTIONS *******************************************************************
 
-// Private
+// Lora.
+static bool loraSendPkt(uint8_t u8Data);
+// Debug.
 static void parseString(String str);
 static char* getStrAppSt(appSt_t appSt);
+// Callbacks.
 static void appInNewStCallback(uint8_t prevSt, uint8_t enterSt);
 
 //******************************************************************************
@@ -80,10 +83,15 @@ static void appInNewStCallback(uint8_t prevSt, uint8_t enterSt);
 //******************************************************************************
 void app_init(void)
 {
+  // Init Hw.
+  pinMode(WARNING_BUZZER, OUTPUT); //$TODO : init pins.
+
+  // Init vars.
   Serial.print(F("Base ready"));
   Serial.println();
   Serial.setTimeout(100);
   sm_initInst(&sm, appSt_init, &appInNewStCallback);
+  timeout.bRunning = false;
 }
 
 //******************************************************************************
@@ -108,7 +116,7 @@ void vdApp_Task(void)
     default:
     case appSt_init: 
     {
-      if(0){//bRfDrv_IsOperational()) {
+      if(0){ //bRfDrv_IsOperational()) {
         sm.nextSt = appSt_rewind;
       }
       else {
@@ -120,12 +128,19 @@ void vdApp_Task(void)
     case appSt_error: 
     {
       if(sm_isEnteringFirstSt(&sm)){
-        //drvLed_blink(ledColor_red, 1000, 1000);
-        setColor(ledColor_blue);
-      } /*
-      else if(bRfDrv_RecvStatusReqBlocking(1000)) {
+        drvLed_blink(ledColor_red, LED_PULSE_ON, LED_PULSE_OFF_FAST_BLINK);
+        mBuzOn();
+        vdRfDrv_SetRxContinuous();  
+        drvTime_startTimeout_1ms(&timeout, 5000);
+      }
+      else if(bRfDrv_RecvStatus()) {
         vdRfDrv_SendPacket(U8_PKTVAL_ERROR);
-      }*/
+        vdRfDrv_SetRxContinuous(); 
+      }
+      else if(drvTime_isTimedOut(&timeout)) {
+        drvLed_off();
+        mBuzOff();
+      }
       break;
     }
 
