@@ -18,16 +18,22 @@ void vdActuator_Rewind(void)
 {
   digitalWrite(PIN_CHA_DIR, HIGH);
   analogWrite(PIN_CHA_PWM, 255);
+  digitalWrite(PIN_CHB_DIR, HIGH);
+  analogWrite(PIN_CHB_PWM, 255);
 }
 
 void vdActuator_Trigger(void)
 {
   digitalWrite(PIN_CHA_DIR, LOW);
   analogWrite(PIN_CHA_PWM, 255);
+  digitalWrite(PIN_CHB_DIR, LOW);
+  analogWrite(PIN_CHB_PWM, 255);
 }
 
 void vdActuator_Stop(void)
 {
   digitalWrite(PIN_CHA_DIR, LOW);
   analogWrite(PIN_CHA_PWM, 0);
+  digitalWrite(PIN_CHB_DIR, LOW);
+  analogWrite(PIN_CHB_PWM, 0);
 }

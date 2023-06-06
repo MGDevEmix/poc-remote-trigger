@@ -45,6 +45,9 @@
 
 #define WARNING_RESET (200)
 
+#define IMEAS_OVERCURRENT (0.6)//(2.0) // xA.
+#define IMEAS_DECIMATION (0.4 / 100.0) // 0.4%.
+
 // TYPEDEFS ********************************************************************
 
 enum appSt_t {
@@ -58,6 +61,7 @@ enum appSt_t {
 
 // VARIABLES *******************************************************************
 
+// SM vars.
 static sm_t sm;
 static sTimeout_t timeout;
 static sTempo_t tempo;
@@ -66,10 +70,14 @@ static uint8_t u8DataFromCtrl; // $TODO: to del ?
 // Accel vars.
 static SPARKFUN_LIS2DH12 accel;       //Create instance
 
+// Imeas var.
+double iMeas_acc;
+
 // FUNCTIONS *******************************************************************
 
-// Lora.
-static bool loraSendPkt(uint8_t u8Data);
+// Imeas.
+static void iMeas_init(void);
+static bool iMeas_processOvercurrent(void);
 // Debug.
 static void parseString(String str);
 static char* getStrAppSt(appSt_t appSt);
@@ -160,11 +168,12 @@ void vdApp_Task(void)
         drvTime_startTimeout_1ms(&timeout, ACTUATOR_CMD_TIME);
         vdActuator_Rewind();
         vdRfDrv_SetRxContinuous();
+        iMeas_init();
       }
       else if(drvTime_isElapsed(&tempo) && sm_isEnteringAgainSt(&sm)) {
         drvLed_blink(ledColor_purple, LED_PULSE_ON, LED_PULSE_OFF_SLOW_BLINK);
       }
-      else if(drvTime_isTimedOut(&timeout)) {
+      else if(drvTime_isTimedOut(&timeout) || iMeas_processOvercurrent()) {
         sm.nextSt = appSt_ready;
         vdActuator_Stop();
       }
@@ -220,12 +229,13 @@ void vdApp_Task(void)
         drvTime_startTimeout_1ms(&timeout, ACTUATOR_CMD_TIME);
         vdActuator_Trigger();
         vdRfDrv_SetRxContinuous();
+        iMeas_init();
       }
       else if(drvTime_isElapsed(&tempo) && sm_isEnteringAgainSt(&sm)) {
         drvLed_blink(ledColor_orange, LED_PULSE_ON, LED_PULSE_OFF_SLOW_BLINK);
         drvBuz_on();
       }
-      else if(drvTime_isTimedOut(&timeout)) {
+      else if(drvTime_isTimedOut(&timeout) || iMeas_processOvercurrent()) {
         sm.nextSt = appSt_done;
         vdActuator_Stop();
       }
@@ -258,6 +268,42 @@ void vdApp_Task(void)
 //******************************************************************************
 // PRIVATE *********************************************************************
 //******************************************************************************
+
+//******************************************************************************
+// Name: iMeas_init()
+// Params: 
+// Return: 
+// Brief: init the overcurrent measurement.
+//******************************************************************************
+void iMeas_init(void)
+{
+  analogReadResolution(12); // Set 12bit resolution.
+  iMeas_acc = 0;
+}
+
+//******************************************************************************
+// Name: iMeas_processOvercurrent()
+// Params: 
+// Return: true if overccurent detected.
+// Brief: process current measurement. Return the result of measurement.
+//******************************************************************************
+bool iMeas_processOvercurrent(void)
+{
+  static uint16_t u16Sample;
+  static double current_A;
+  u16Sample = analogRead(PIN_A0);
+  iMeas_acc = iMeas_acc * (1.0 - IMEAS_DECIMATION); // Keep (1-x)% of accumulator.
+  iMeas_acc += ((double)u16Sample) * IMEAS_DECIMATION; // Add x% of new sample.
+  current_A = iMeas_acc / 4096.0 * 2.0;
+  Serial.print(" ");
+  //Serial.print(u16Sample); // Current sample.
+  //Serial.print(iMeas_acc); // Accumulator (sample filtered).
+  Serial.print(current_A); // Real amp value from accumulator (/4096 *3.3V /3.3V *2.0A).
+  if(current_A > IMEAS_OVERCURRENT) {
+    return true;
+  }
+  return false;
+}
 
 //******************************************************************************
 // Name: parseString()
