@@ -43,10 +43,10 @@ extern "C" {
 
   // Commands.
   void drvLed_off(void);
+  void drvLed_on(ledColor_t color);
   void drvLed_blink(ledColor_t color, uint16_t timeOn_ms, uint16_t timeOff_ms);
   void drvLed_flash(ledColor_t color, uint16_t timeOn_ms);
-
-void setColor(ledColor_t color); //$TEMP
+  void drvLed_blinkOnAndOff(ledColor_t color, uint8_t blinkCnt, uint16_t timeOnBlink_ms, uint16_t timeOffBlink_ms, uint16_t timeOnFix_ms);
 
 #ifdef	__cplusplus
 }

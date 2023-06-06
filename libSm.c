@@ -1,5 +1,5 @@
 //******************************************************************************
-//* Project : Remote
+//* Project : 
 //* All Rights Reserved 2023 DevMG
 //* This program contains proprietary information which is a trade
 //* secret of DevMG and/or its affiliates and also is protected as
@@ -43,8 +43,9 @@ void sm_initInst(sm_t *sm, uint8_t initSt,
   sm->prevSt = initSt;
   sm->curSt = initSt;
   sm->nextSt = initSt;
-  sm->bNewSt = true;
+  sm->bEnterFirst = true;
   sm->bEnterAgain = true;
+  sm->bNewSt = true;
   sm->pEnterStCb = pEnterStCb;
 }
 
@@ -86,6 +87,7 @@ uint8_t sm_getNextSt(sm_t *sm) {
 //******************************************************************************
 void sm_setNextSt(sm_t *sm, uint8_t nextSt) {
   sm->nextSt = nextSt;
+  sm->bNewSt = true;
 }
 
 //******************************************************************************
@@ -110,12 +112,13 @@ void sm_processEnteringSt(sm_t *sm)
 {
   // If next state is different than current state, save previous state,
   //  update current state and call callback if registered.
-  if(sm->curSt != sm->nextSt)
+  if( sm->bNewSt || (sm->curSt != sm->nextSt) )
   {
     sm->prevSt = sm->curSt;
     sm->curSt = sm->nextSt;
-    sm->bNewSt = true;
+    sm->bEnterFirst = true;
     sm->bEnterAgain = true;
+    sm->bNewSt = false;
     if(NULL != sm->pEnterStCb) {
       sm->pEnterStCb(sm->prevSt, sm->curSt);
     }
@@ -130,8 +133,8 @@ void sm_processEnteringSt(sm_t *sm)
 //******************************************************************************
 bool sm_isEnteringFirstSt(sm_t *sm)
 {
-  if(sm->bNewSt) {
-    sm->bNewSt = false;
+  if(sm->bEnterFirst) {
+    sm->bEnterFirst = false;
     return true;
   }
   return false;
@@ -173,7 +176,5 @@ bool sm_isExitingSt(sm_t *sm) {
 //******************************************************************************
 // DO NOT EDIT *****************************************************************
 //******************************************************************************
-
-
 
 // EOF *************************************************************************

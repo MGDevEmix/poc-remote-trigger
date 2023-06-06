@@ -28,6 +28,7 @@
 
 typedef enum {
   ledSt_off,
+  ledSt_on,
   ledSt_blink_on,
   ledSt_blink_off,
   ledSt_flash_on,
@@ -38,19 +39,21 @@ typedef enum {
 static sm_t sm;
 static sTempo_t tempo;
 static ledColor_t currentColor;
-static uint16_t tempoOn_ms;
-static uint16_t tempoOff_ms;
+static uint16_t tempoBlinkOn_ms;
+static uint16_t tempoBlinkOff_ms;
+static uint16_t tempoFlashOn_ms;
+static uint8_t blinkCnt;
 
 // FUNCTIONS *******************************************************************
 
-/*static*/ void setColor(ledColor_t color);
-void vdLed_Init(void);
-void vdLed_Off(void);
-void vdLed_FixRed(void);
-void vdLed_FixBlue(void);
-void vdLed_FixPurple(void);
-void vdLed_FixGreen(void);
-void vdLed_FixOrange(void);
+static void setColor(ledColor_t color);
+static void vdLed_Init(void);
+static void vdLed_Off(void);
+static void vdLed_FixRed(void);
+static void vdLed_FixBlue(void);
+static void vdLed_FixPurple(void);
+static void vdLed_FixGreen(void);
+static void vdLed_FixOrange(void);
 
 //******************************************************************************
 // Name: drvLed_init()
@@ -69,8 +72,10 @@ void drvLed_init(void)
   sm_initInst(&sm, ledSt_off, NULL);
   tempo.bRunning = false;
   currentColor = ledColor_off;
-  tempoOn_ms = 0;
-  tempoOff_ms = 0;
+  tempoBlinkOn_ms = 0;
+  tempoBlinkOff_ms = 0;
+  tempoFlashOn_ms = 0;
+  blinkCnt = 0;
 }
 
 //******************************************************************************
@@ -91,11 +96,17 @@ void drvLed_task(void)
       }
       break;
 
+    case ledSt_on:
+      if(sm_isEnteringFirstSt(&sm)) {
+        setColor(currentColor);
+      }
+      break;
+
     case ledSt_blink_on:
       if(sm_isEnteringFirstSt(&sm))
       {
         setColor(currentColor);
-        drvTime_startTempo_1ms(&tempo, tempoOn_ms);
+        drvTime_startTempo_1ms(&tempo, tempoBlinkOn_ms);
       }
       else if(drvTime_isElapsed(&tempo)) {
         sm.nextSt = ledSt_blink_off;
@@ -106,10 +117,28 @@ void drvLed_task(void)
       if(sm_isEnteringFirstSt(&sm))
       {
         setColor(ledColor_off);
-        drvTime_startTempo_1ms(&tempo, tempoOff_ms);
+        drvTime_startTempo_1ms(&tempo, tempoBlinkOff_ms);
       }
       else if(drvTime_isElapsed(&tempo)) {
-        sm.nextSt = ledSt_blink_on;
+        if(blinkCnt == 255) {
+          sm.nextSt = ledSt_blink_on;
+        }
+        else if(blinkCnt > 0)
+        {
+          blinkCnt--;
+          if(blinkCnt > 0){
+            sm.nextSt = ledSt_blink_on;
+          }
+          else
+          {
+            if(tempoFlashOn_ms > 0) {
+              sm.nextSt = ledSt_flash_on;
+            }
+            else {
+              sm.nextSt = ledSt_off;
+            }
+          }
+        }
       }
       break;
 
@@ -117,7 +146,7 @@ void drvLed_task(void)
       if(sm_isEnteringFirstSt(&sm))
       {
         setColor(currentColor);
-        drvTime_startTempo_1ms(&tempo, tempoOn_ms);
+        drvTime_startTempo_1ms(&tempo, tempoFlashOn_ms);
       }
       else if(drvTime_isElapsed(&tempo)) {
         sm.nextSt = ledSt_off;
@@ -144,6 +173,22 @@ void drvLed_off(void)
 }
 
 //******************************************************************************
+// Name: drvLed_on()
+// Params: void
+// Return: void
+// Brief:
+//******************************************************************************
+void drvLed_on(ledColor_t color)
+{
+  sm.nextSt = ledSt_on;
+  tempo.bRunning = false;
+  currentColor = color;
+
+  // Do it right now.
+  setColor(color);
+}
+
+//******************************************************************************
 // Name: drvLed_blinkFast()
 // Params: void
 // Return: void
@@ -153,8 +198,9 @@ void drvLed_blink(ledColor_t color, uint16_t timeOn_ms, uint16_t timeOff_ms)
 {
   sm.nextSt = ledSt_blink_on;
   currentColor = color;
-  tempoOn_ms = timeOn_ms;
-  tempoOff_ms = timeOff_ms;
+  tempoBlinkOn_ms = timeOn_ms;
+  tempoBlinkOff_ms = timeOff_ms;
+  blinkCnt = 255; // Infinite.
 }
 
 //******************************************************************************
@@ -167,7 +213,26 @@ void drvLed_flash(ledColor_t color, uint16_t timeOn_ms)
 {
   sm.nextSt = ledSt_flash_on;
   currentColor = color;
-  tempoOn_ms = timeOn_ms;
+  tempoFlashOn_ms = timeOn_ms;
+}
+
+//******************************************************************************
+// Name: drvLed_blinkOnAndOff()
+// Params: void
+// Return: void
+// Brief: Blinks a color for a number of blink count, with specified on and off
+//  time. Then turn on light during a time and then turn off light.
+//******************************************************************************
+void drvLed_blinkOnAndOff(ledColor_t color, 
+          uint8_t blinksCnt, uint16_t timeOnBlink_ms, uint16_t timeOffBlink_ms, 
+          uint16_t timeOnFix_ms) 
+{
+  sm.nextSt = ledSt_blink_on;
+  currentColor = color;
+  blinkCnt = blinksCnt;
+  tempoBlinkOn_ms = timeOnBlink_ms;
+  tempoBlinkOff_ms = timeOffBlink_ms;
+  tempoFlashOn_ms = timeOnFix_ms;
 }
 
 //******************************************************************************

@@ -96,12 +96,13 @@ bool bRfDrv_IsOperational(void)
   return bDeviceOperational;
 }
 
-void vdRfDrv_SendPacket(uint8_t u8Data)
+void vdRfDrv_SendPacketAndRxContinuous(uint8_t u8Data)
 {
   au8Packet[0] = U8_PKTVAL_BASE; // From.
   au8Packet[1] = U8_PKTVAL_CTRL; // To.
   au8Packet[2] = u8Data;
   vdSendRawPacket(au8Packet, 3);
+  vdRfDrv_SetRxContinuous(); 
 }
 
 bool bRfDrv_RecvPacketBlocking(uint32_t u32Timeout_ms, uint8_t* pu8Data)
@@ -143,11 +144,12 @@ bool bRfDrv_RecvStatusReqBlocking(uint32_t u32Timeout_ms)
 
 void vdRfDrv_SetRxContinuous(void)
 {
+  LT.clearIrqStatus(IRQ_RADIO_ALL);
   LT.setDioIrqParams(IRQ_RADIO_ALL, (IRQ_RX_DONE + IRQ_RX_TX_TIMEOUT + IRQ_HEADER_ERROR), 0, 0);  //set for IRQ on RX done or timeout
   LT.setRx(0xFFFF);
 }
 
-bool bRfDrv_RecvStatus(void)
+bool bRfDrv_RecvPacket(uint8_t *pu8Data)
 {
   static bool bRet;
   bRet = false;
@@ -164,15 +166,22 @@ bool bRfDrv_RecvStatus(void)
       if(3 == LT.readPacket(au8RxBuf, 3))
       {
         if( (U8_PKTVAL_CTRL == au8RxBuf[0]) && // From
-            (U8_PKTVAL_BASE == au8RxBuf[1]) && // To
-            (U8_PKTVAL_GET_STATUS == au8RxBuf[2]) )  
+            (U8_PKTVAL_BASE == au8RxBuf[1]) ) // To  
         {
+          *pu8Data = au8RxBuf[2];
           bRet = true;
         }
       }
     }
   }
   return bRet;
+}
+
+bool bRfDrv_RecvStatusOrDiscover(void)
+{
+  uint8_t u8Data;
+  return ( bRfDrv_RecvPacket(&u8Data) && 
+           ( (u8Data == U8_PKTVAL_GET_STATUS) || (u8Data == U8_PKTVAL_DISCOVER) ) );
 }
 
 void vdRfDrv_SetSleep(void)

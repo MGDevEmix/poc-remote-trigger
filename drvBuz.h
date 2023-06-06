@@ -1,5 +1,5 @@
 //******************************************************************************
-//* Projet : 
+//* Projet : Base
 //* All Rights Reserved 2023 DevMG
 //* This program contains proprietary information which is a trade
 //* secret of DevMG and/or its affiliates and also is protected as
@@ -10,8 +10,8 @@
 //* DevMG - 2 Impasse d'Amsterdam 49460 Montreuil-Juigne
 //******************************************************************************
 
-#ifndef LIBSM_H_
-#define LIBSM_H_
+#ifndef DRVBUZ_H_
+#define DRVBUZ_H_
 
 #ifdef	__cplusplus
 extern "C" {
@@ -23,32 +23,18 @@ extern "C" {
 
 // DEFINES *********************************************************************
 // TYPEDEFS ********************************************************************
-
-typedef struct {
-  uint8_t prevSt;   // Previous state.
-  uint8_t curSt;    // Current state.
-  uint8_t nextSt;   // Next state.
-  bool bEnterFirst; // Indicates the current state is just entered.
-  bool bEnterAgain; // Indicates the current state is entered again.
-  bool bNewSt;      // Indicates a change in state.
-  void (*pEnterStCb)(uint8_t prevSt, uint8_t enterSt); // Pointer to the callback when entering new state.
-} sm_t;
-
 // MACROS **********************************************************************
 // EXTERNS *********************************************************************
 // PROTOTYPES ******************************************************************
 
-void    sm_initInst(sm_t *sm, uint8_t initSt,
-                    void (*pEnterStCb)(uint8_t prevSt, uint8_t enterSt));
-uint8_t sm_getPrevSt(sm_t *sm);
-uint8_t sm_getCurSt(sm_t *sm);
-uint8_t sm_getNextSt(sm_t *sm);
-void    sm_setNextSt(sm_t *sm, uint8_t nextSt);
-void    sm_enterAgainSt(sm_t *sm);
-void    sm_processEnteringSt(sm_t *sm);
-bool    sm_isEnteringFirstSt(sm_t *sm);
-bool    sm_isEnteringAgainSt(sm_t *sm);
-bool    sm_isExitingSt(sm_t *sm);
+  // Init / task.
+  void drvBuz_init(void);
+  void drvBuz_task(void);
+
+  // Command.
+  void drvBuz_off(void);
+  void drvBuz_on(void);
+  void drvBuz_bips_ms(uint16_t duration_ms);
 
 #ifdef	__cplusplus
 }

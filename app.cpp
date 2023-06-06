@@ -25,6 +25,7 @@
 
 // Portable C code.
 #include "drvLed.h"
+#include "drvBuz.h"
 #include "drvTime.h"
 #include "libSm.h"
 
@@ -42,9 +43,7 @@
 #define LED_PULSE_OFF_SLOW_BLINK (1000)
 #define LED_PULSE_OFF_FAST_BLINK (200)
 
-// Buzzer
-#define mBuzOn()  digitalWrite(WARNING_BUZZER, HIGH);
-#define mBuzOff() digitalWrite(WARNING_BUZZER, LOW);
+#define WARNING_RESET (200)
 
 // TYPEDEFS ********************************************************************
 
@@ -61,6 +60,7 @@ enum appSt_t {
 
 static sm_t sm;
 static sTimeout_t timeout;
+static sTempo_t tempo;
 static uint8_t u8DataFromCtrl; // $TODO: to del ?
 
 // Accel vars.
@@ -97,6 +97,7 @@ void app_init(void)
   Serial.setTimeout(100);
   sm_initInst(&sm, appSt_init, &appInNewStCallback);
   timeout.bRunning = false;
+  tempo.bRunning = false;
 }
 
 //******************************************************************************
@@ -121,7 +122,7 @@ void vdApp_Task(void)
     default:
     case appSt_init: 
     {
-      if(0){ //bRfDrv_IsOperational()) {
+      if(bRfDrv_IsOperational()) {
         sm.nextSt = appSt_rewind;
       }
       else {
@@ -134,54 +135,78 @@ void vdApp_Task(void)
     {
       if(sm_isEnteringFirstSt(&sm)){
         drvLed_blink(ledColor_red, LED_PULSE_ON, LED_PULSE_OFF_FAST_BLINK);
-        mBuzOn();
+        drvBuz_bips_ms(3000);
         vdRfDrv_SetRxContinuous();  
         drvTime_startTimeout_1ms(&timeout, 5000);
       }
-      else if(bRfDrv_RecvStatus()) {
-        vdRfDrv_SendPacket(U8_PKTVAL_ERROR);
-        vdRfDrv_SetRxContinuous(); 
+      else if(bRfDrv_RecvStatusOrDiscover()) {
+        vdRfDrv_SendPacketAndRxContinuous(U8_PKTVAL_ERROR);
       }
       else if(drvTime_isTimedOut(&timeout)) {
         drvLed_off();
-        mBuzOff();
-        //vdRfDrv_SetSleep(); // Keep rx and wakeup on DIO1!
+        drvBuz_off();
+        vdRfDrv_SetSleep();
         LowPower.sleep();
-        sm.nextSt = appSt_init; // Try to reinit after wakeup.
+        // Zzz.
       }
       break;
     }
 
     case appSt_rewind: {
       if(sm_isEnteringFirstSt(&sm)){
-        //vdLed_FixPurple();
-        vdTimeoutSet(ACTUATOR_CMD_TIME);
+        drvLed_off();
+        drvBuz_off(); // Reset warning.
+        drvTime_startTempo_1ms(&tempo, WARNING_RESET);
+        drvTime_startTimeout_1ms(&timeout, ACTUATOR_CMD_TIME);
         vdActuator_Rewind();
-        Serial.print(F("Rewinding..."));
+        vdRfDrv_SetRxContinuous();
       }
-      else if(bTimeoutExpired()) {
-        sm_setNextSt(&sm, appSt_ready);
+      else if(drvTime_isElapsed(&tempo) && sm_isEnteringAgainSt(&sm)) {
+        drvLed_blink(ledColor_purple, LED_PULSE_ON, LED_PULSE_OFF_SLOW_BLINK);
+      }
+      else if(drvTime_isTimedOut(&timeout)) {
+        sm.nextSt = appSt_ready;
         vdActuator_Stop();
       }
-      else if(bRfDrv_RecvStatusReqBlocking(u32TimeoutGetLeftTime() + 1)) {
-        vdRfDrv_SendPacket(U8_PKTVAL_PROGRESS);
+      else if(bRfDrv_RecvStatusOrDiscover()) {
+        vdRfDrv_SendPacketAndRxContinuous(U8_PKTVAL_PROGRESS);
       }
       break;
     }
 
     case appSt_ready: {
       if(sm_isEnteringFirstSt(&sm)){
-        //vdLed_FixGreen();
-        Serial.print(F("Ready"));
+        drvLed_off();
+        drvBuz_off(); // Reset warning.
+        drvTime_startTempo_1ms(&tempo, WARNING_RESET);
+        drvTime_startTimeout_1ms(&timeout, 15000);
+        vdRfDrv_SetRxContinuous();
       }
-      else if(bRfDrv_RecvPacketBlocking(1000, &u8DataFromCtrl)) {
+      else if(drvTime_isElapsed(&tempo) && sm_isEnteringAgainSt(&sm))
+      {
+        drvLed_blinkOnAndOff(ledColor_green, 4, LED_PULSE_ON, LED_PULSE_OFF_FAST_BLINK, 10000);
+        drvBuz_bips_ms(1000);
+      }
+      else if(bRfDrv_RecvPacket(&u8DataFromCtrl)) 
+      {
         if(U8_PKTVAL_GET_STATUS == u8DataFromCtrl) {
-          vdRfDrv_SendPacket(U8_PKTVAL_READY);
+          vdRfDrv_SendPacketAndRxContinuous(U8_PKTVAL_READY);
+        }
+        else if(U8_PKTVAL_DISCOVER == u8DataFromCtrl) {
+          vdRfDrv_SendPacketAndRxContinuous(U8_PKTVAL_READY);
+          sm_setNextSt(&sm, appSt_ready); // Blink again.
         }
         else if(U8_PKTVAL_TRIGGER == u8DataFromCtrl) {
-          vdRfDrv_SendPacket(U8_PKTVAL_PROGRESS);
-          sm_setNextSt(&sm, appSt_trigger);
+          vdRfDrv_SendPacketAndRxContinuous(U8_PKTVAL_PROGRESS);
+          sm.nextSt = appSt_trigger;
         }
+      }
+      else if(drvTime_isTimedOut(&timeout)) {
+        drvLed_off();
+        drvBuz_off();
+        //vdRfDrv_SetSleep(); We want to be waken up by RF.
+        LowPower.sleep();
+        // Zzz.
       }
       break;
     }
@@ -189,17 +214,23 @@ void vdApp_Task(void)
     case appSt_trigger: 
     {
       if(sm_isEnteringFirstSt(&sm)){
-        //vdLed_FixPurple();
-        vdTimeoutSet(ACTUATOR_CMD_TIME);
+        drvLed_off();
+        drvBuz_off(); // Reset warning.
+        drvTime_startTempo_1ms(&tempo, WARNING_RESET);
+        drvTime_startTimeout_1ms(&timeout, ACTUATOR_CMD_TIME);
         vdActuator_Trigger();
-        Serial.print(F("Trigger..."));
+        vdRfDrv_SetRxContinuous();
       }
-      else if(bTimeoutExpired()) {
-        sm_setNextSt(&sm, appSt_done);
+      else if(drvTime_isElapsed(&tempo) && sm_isEnteringAgainSt(&sm)) {
+        drvLed_blink(ledColor_orange, LED_PULSE_ON, LED_PULSE_OFF_SLOW_BLINK);
+        drvBuz_on();
+      }
+      else if(drvTime_isTimedOut(&timeout)) {
+        sm.nextSt = appSt_done;
         vdActuator_Stop();
       }
-      else if(bRfDrv_RecvStatusReqBlocking(u32TimeoutGetLeftTime() + 1)) {
-        vdRfDrv_SendPacket(U8_PKTVAL_PROGRESS);
+      else if(bRfDrv_RecvStatusOrDiscover()) {
+        vdRfDrv_SendPacketAndRxContinuous(U8_PKTVAL_PROGRESS);
       }
       break;
     }
@@ -207,15 +238,16 @@ void vdApp_Task(void)
     case appSt_done: 
     {
       if(sm_isEnteringFirstSt(&sm)){
-        //vdLed_FixGreen();
+        drvLed_on(ledColor_green);
+        drvBuz_off();
         vdTimeoutSet(2000);
-        Serial.print(F("Done"));
+        vdRfDrv_SetRxContinuous();
       }
       else if(bTimeoutExpired()) {
-        sm_setNextSt(&sm, appSt_rewind);
+        sm.nextSt = appSt_rewind;
       }
-      else if(bRfDrv_RecvStatusReqBlocking(u32TimeoutGetLeftTime() + 1)) {
-        vdRfDrv_SendPacket(U8_PKTVAL_DONE);
+      else if(bRfDrv_RecvStatusOrDiscover()) {
+        vdRfDrv_SendPacketAndRxContinuous(U8_PKTVAL_PROGRESS);
       }
       break;
     }

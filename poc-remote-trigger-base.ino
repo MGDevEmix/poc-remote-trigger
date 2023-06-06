@@ -21,6 +21,7 @@
 
 // Portable C code.
 #include "drvLed.h"
+#include "drvBuz.h"
 
 // Non portable C code.
 #include "app.h"
@@ -45,6 +46,7 @@ void setup()
   vdRfDrv_Init(RF_PROFILE_BASE);
   vdActuator_Init();
   drvLed_init();
+  drvBuz_init();
 
   // Init app.
   app_init(); 
@@ -53,6 +55,7 @@ void setup()
 void loop() {
   vdApp_Task();
   drvLed_task();
+  drvBuz_task();
 }
 
 
