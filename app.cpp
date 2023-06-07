@@ -43,9 +43,13 @@
 #define LED_PULSE_OFF_SLOW_BLINK (1000)
 #define LED_PULSE_OFF_FAST_BLINK (200)
 
-#define WARNING_RESET (200)
+// Warning device has its own timing for buzzer. When at least a led or the buzzer
+//  is active, it's difficults to say when a bip will occur during a second: 1 bip
+//  (nice) or 1/2 bip + 1/2 bip (not nice). This tempo will power off all, therefore
+//  it will reset the internal timer => 1 bip per second (nice).
+#define WARNING_RESET (200) 
 
-#define IMEAS_OVERCURRENT (0.6)//(2.0) // xA.
+#define IMEAS_OVERCURRENT (2.0) // xA.
 #define IMEAS_DECIMATION (0.4 / 100.0) // 0.4%.
 
 // TYPEDEFS ********************************************************************
@@ -65,10 +69,11 @@ enum appSt_t {
 static sm_t sm;
 static sTimeout_t timeout;
 static sTempo_t tempo;
-static uint8_t u8DataFromCtrl; // $TODO: to del ?
+static uint8_t u8DataFromCtrl; 
+bool bWakeupRf;
 
 // Accel vars.
-static SPARKFUN_LIS2DH12 accel;       //Create instance
+static SPARKFUN_LIS2DH12 accel; // Not used currently.
 
 // Imeas var.
 double iMeas_acc;
@@ -82,7 +87,7 @@ static bool iMeas_processOvercurrent(void);
 static void parseString(String str);
 static char* getStrAppSt(appSt_t appSt);
 // Callbacks.
-static void irqBut1WakeUp(void);
+static void irqRfWakeUp(void);
 static void appInNewStCallback(uint8_t prevSt, uint8_t enterSt);
 
 //******************************************************************************
@@ -97,7 +102,7 @@ void app_init(void)
   pinMode(WARNING_BUZZER, OUTPUT); //$TODO : init pins.
 
   // Low power.
-  LowPower.attachInterruptWakeup(RF_DIO1, irqBut1WakeUp, RISING);
+  LowPower.attachInterruptWakeup(RF_DIO1, irqRfWakeUp, RISING);
 
   // Init vars.
   Serial.print(F("Base ready"));
@@ -154,8 +159,8 @@ void vdApp_Task(void)
         drvLed_off();
         drvBuz_off();
         vdRfDrv_SetSleep();
-        LowPower.sleep();
-        // Zzz.
+        LowPower.deepSleep();
+        // Zzz, will never wakeup (rf off).
       }
       break;
     }
@@ -214,8 +219,23 @@ void vdApp_Task(void)
         drvLed_off();
         drvBuz_off();
         //vdRfDrv_SetSleep(); We want to be waken up by RF.
-        LowPower.sleep();
+        bWakeupRf = false;
+        LowPower.deepSleep();
         // Zzz.
+        
+        /*
+        Je me suis pose la question d'implementer une strategie de low power sans RF
+        avec reveil sur accelerometre. Neanmoins le gain n'est pas terrible et le 
+        fonctionnel est moins bon: pour se etre a l'ecoute de la RF, il faudrait donner
+        un coup dans la benne.
+        Conso sleep avec RF on: 17mA.
+        Conso sleep sans RF: 11mA. Pas terrible. Sur les 11mA, 5mA pour le debugger embarque,
+        6mA pour le ATSAM en sleep.
+        LowPower.deepSleep(10000);
+        if(!bWakeupRf) {
+          vdRfDrv_SetSleep();
+        }
+        */
       }
       break;
     }
@@ -431,6 +451,10 @@ void parseString(String str)
       drvLed_blink(ledColor_blue, 100, 200);
       Serial.print("done");
     }
+    else if(str.startsWith("fw"))
+    {
+      Serial.print(STR_APP_VERSION);
+    }
   }
 }
 
@@ -473,9 +497,7 @@ void appInNewStCallback(uint8_t prevSt, uint8_t enterSt)
   Serial.print("]");
 }
 
-void irqBut1WakeUp(void) {
-  // This function will be called once on device wakeup
-  // You can do some little operations here (like changing variables which will be used in the loop)
-  // Remember to avoid calling delay() and long running functions since this functions executes in interrupt context
+void irqRfWakeUp(void) {
+  bWakeupRf = true;
 }
 

@@ -33,7 +33,7 @@ extern "C" {
 
 // DEFINES *********************************************************************
 
-#define STR_APP_VERSION "V0.00"
+#define STR_APP_VERSION "V0.01"
 
 #define CHAR_SOH ( 1) // 0x01
 #define CHAR_EOT ( 4) // 0x04
